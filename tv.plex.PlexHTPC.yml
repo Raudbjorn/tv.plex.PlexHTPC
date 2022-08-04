@@ -2,6 +2,7 @@ app-id: tv.plex.PlexHTPC
 runtime: org.freedesktop.Platform
 runtime-version: '21.08'
 sdk: org.freedesktop.Sdk
+sdk-extensions: [ "org.freedesktop.Sdk.Extension.llvm12" ]
 command: Plex
 finish-args:
   - --socket=x11
@@ -14,6 +15,12 @@ finish-args:
   - --talk-name=org.freedesktop.ScreenSaver
 cleanup:
   - /include
+  - /lib/cmake
+  - /lib/lua
+  - /lib/pkgconfig
+  - /share/doc
+  - /share/locale
+  - /share/man
   - /bin/cjpeg
   - /bin/djpeg
   - /bin/jpegtran
@@ -59,9 +66,6 @@ modules:
         branch: release-2.1.12-stable
     cleanup:
       - /bin
-      - /include
-      - /lib/pkgconfig
-      - /lib/cmake
 
   - name: libwebp
     buildsystem: autotools
@@ -102,12 +106,405 @@ modules:
           - GLOBIGNORE=contrib/minizip && rm -rf contrib/*
           - rm -f contrib/minizip/Makefile
           - autoreconf -fiv contrib/minizip
+
+  - name: libcec
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=1
+      - -DHAVE_LINUX_API=1
+      - -DCMAKE_INSTALL_PREFIX=/app
+      - -DCMAKE_INSTALL_LIBDIR=/app/lib
+      - -DCMAKE_INSTALL_LIBDIR_NOARCH=/app/lib
+    sources:
+      - type: archive
+        url: https://github.com/Pulse-Eight/libcec/archive/libcec-4.0.7.tar.gz
+        sha256: bcd92c376993a5721d346edcc09eb17289451f9156b1d1d113c9663c2046315a
+        x-checker-data:
+          type: anitya
+          project-id: 21468
+          stable-only: true
+          versions:
+            <: 5.0.0
+          url-template: https://github.com/Pulse-Eight/libcec/archive/libcec-$version.tar.gz
     cleanup:
-      - '*.la'
+      - /bin
+    modules:
+      - name: p8-platform
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DCMAKE_BUILD_TYPE=Release
+          - -DBUILD_SHARED_LIBS=1
+          - -DCMAKE_INSTALL_PREFIX=/app
+          - -DCMAKE_INSTALL_LIBDIR=/app/lib
+          - -DCMAKE_INSTALL_LIBDIR_NOARCH=/app/lib
+        sources:
+          - type: archive
+            url: https://github.com/Pulse-Eight/platform/archive/p8-platform-2.1.0.1.tar.gz
+            sha256: 064f8d2c358895c7e0bea9ae956f8d46f3f057772cb97f2743a11d478a0f68a0
+            x-checker-data:
+              type: anitya
+              project-id: 7322
+              stable-only: true
+              url-template: https://github.com/Pulse-Eight/platform/archive/p8-platform-$version.tar.gz
+        cleanup:
+          - /lib/p8-platform
+
+  - name: libmpv
+    buildsystem: simple
+    build-commands:
+      - python3 waf configure --prefix=/app --enable-libmpv-shared --disable-cplayer --disable-macos-touchbar --disable-swift --disable-manpage-build --enable-lgpl
+      - python3 waf build
+      - python3 waf install
+    sources:
+      - type: git
+        url: https://github.com/plexinc/mpv/
+        branch: v3.0
+      - type: file
+        url: https://waf.io/waf-2.0.24
+        sha256: 93909bca823a675f9f40af7c65b24887c3a3c0efdf411ff1978ba827194bdeb0
+        dest-filename: waf
+        x-checker-data:
+          type: anitya
+          project-id: 5116
+          stable-only: true
+          url-template: https://waf.io/waf-$version
+    modules:
+      - name: luajit
+        no-autogen: true
+        cleanup:
+          - /bin
+        sources:
+          - type: archive
+            url: http://luajit.org/download/LuaJIT-2.1.0-beta3.tar.gz
+            sha256: 1ad2e34b111c802f9d0cdf019e986909123237a28c746b21295b63c9e785d9c3
+            x-checker-data:
+              type: anitya
+              project-id: 6444
+              stable-only: false
+              url-template: http://luajit.org/download/LuaJIT-$version.tar.gz
+          - type: shell
+            commands:
+              - sed -i 's|/usr/local|/app|' ./Makefile
+
+      - name: mujs
+        buildsystem: simple
+        sources:
+          # using git is needed since mujs takes version from git or the build directory
+          - type: git
+            url: https://github.com/ccxvii/mujs
+            commit: dd0a0972b4428771e6a3887da2210c7c9dd40f9c
+            tag: 1.2.0
+            x-checker-data:
+              type: anitya
+              project-id: 269367
+              stable-only: true
+              tag-template: $version
+        build-commands:
+          - make release shared
+          - make prefix=/app install-shared
+        cleanup:
+          - /bin
+
+      - name: libass
+        buildsystem: autotools
+        config-opts:
+          - --disable-static
+        sources:
+          - type: archive
+            url: https://github.com/libass/libass/releases/download/0.16.0/libass-0.16.0.tar.xz
+            sha256: 5dbde9e22339119cf8eed59eea6c623a0746ef5a90b689e68a090109078e3c08
+            x-checker-data:
+              type: anitya
+              project-id: 1560
+              stable-only: true
+              url-template: https://github.com/libass/libass/releases/download/$version/libass-$version.tar.xz
+
+      - name: vapoursynth
+        buildsystem: autotools
+        config-opts:
+          - --with-python-prefix=/app
+        sources:
+          - type: archive
+            url: https://github.com/vapoursynth/vapoursynth/archive/R59.tar.gz
+            sha256: d713f767195cb3a9a7ccb97b1e61e0cf5a9332eed86c6362badfff6857792a86
+            x-checker-data:
+              type: anitya
+              project-id: 15982
+              stable-only: true
+              url-template: https://github.com/vapoursynth/vapoursynth/archive/$version.tar.gz
+        cleanup:
+          - /bin
+        modules:
+          - name: zimg
+            config-opts:
+              - --disable-static
+            sources:
+              - type: archive
+                url: https://github.com/sekrit-twc/zimg/archive/release-3.0.4.tar.gz
+                sha256: 219d1bc6b7fde1355d72c9b406ebd730a4aed9c21da779660f0a4c851243e32f
+                x-checker-data:
+                  type: anitya
+                  project-id: 13685
+                  stable-only: true
+                  url-template: https://github.com/sekrit-twc/zimg/archive/release-$version.tar.gz
+
+      - name: ffmpeg
+        buildsystem: autotools
+        build-options:
+          append-path: /usr/lib/sdk/llvm12/bin
+          prepend-ld-library-path: /usr/lib/sdk/llvm12/lib
+        config-opts:
+          - '--disable-static'
+          - '--enable-shared'
+          - '--disable-libx264'
+          - '--disable-hwaccels'
+#          - '--disable-protocol=concat'
+##          - '--external-decoder=h264'
+          - '--enable-debug'
+          - '--enable-muxers'
+          - '--enable-libxml2'
+          - '--fatal-warnings'
+          - '--disable-gmp'
+#          - '--disable-avdevice'
+          - '--disable-bzlib'
+          - '--disable-sdl2'
+#          - '--disable-decoders'
+#          - '--disable-devices'
+#          - '--disable-encoders'
+          - '--disable-ffprobe'
+          - '--disable-ffplay'
+          - '--disable-doc'
+          - '--disable-iconv'
+          - '--disable-lzma'
+          - '--disable-schannel'
+          - '--disable-linux-perf'
+          - '--disable-mediacodec'
+          - '--enable-eae'
+          - '--disable-protocol=udp,udplite'
+          # ...
+          - '--enable-cuda-llvm'
+          - '--enable-libdrm'
+          - '--enable-opencl'
+          - '--enable-cross-compile'
+          - '--enable-decoder=png'
+          - '--enable-decoder=apng'
+          - '--enable-decoder=bmp'
+          - '--enable-decoder=mjpeg'
+          - '--enable-decoder=thp'
+          - '--enable-decoder=gif'
+          - '--enable-decoder=dirac'
+          - '--enable-decoder=ffv1'
+          - '--enable-decoder=ffvhuff'
+          - '--enable-decoder=huffyuv'
+          - '--enable-decoder=rawvideo'
+          - '--enable-decoder=zero12v'
+          - '--enable-decoder=ayuv'
+          - '--enable-decoder=r210'
+          - '--enable-decoder=v210'
+          - '--enable-decoder=v210x'
+          - '--enable-decoder=v308'
+          - '--enable-decoder=v408'
+          - '--enable-decoder=v410'
+          - '--enable-decoder=y41p'
+          - '--enable-decoder=yuv4'
+          - '--enable-decoder=ansi'
+          - '--enable-decoder=alac'
+          - '--enable-decoder=flac'
+          - '--enable-decoder=vorbis'
+          - '--enable-decoder=opus'
+          - '--enable-decoder=pcm_f32be'
+          - '--enable-decoder=pcm_f32le'
+          - '--enable-decoder=pcm_f64be'
+          - '--enable-decoder=pcm_f64le'
+          - '--enable-decoder=pcm_lxf'
+          - '--enable-decoder=pcm_s16be'
+          - '--enable-decoder=pcm_s16be_planar'
+          - '--enable-decoder=pcm_s16le'
+          - '--enable-decoder=pcm_s16le_planar'
+          - '--enable-decoder=pcm_s24be'
+          - '--enable-decoder=pcm_s24le'
+          - '--enable-decoder=pcm_s24le_planar'
+          - '--enable-decoder=pcm_s32be'
+          - '--enable-decoder=pcm_s32le'
+          - '--enable-decoder=pcm_s32le_planar'
+          - '--enable-decoder=pcm_s8'
+          - '--enable-decoder=pcm_s8_planar'
+          - '--enable-decoder=pcm_u16be'
+          - '--enable-decoder=pcm_u16le'
+          - '--enable-decoder=pcm_u24be'
+          - '--enable-decoder=pcm_u24le'
+          - '--enable-decoder=pcm_u32be'
+          - '--enable-decoder=pcm_u32le'
+          - '--enable-decoder=pcm_u8'
+          - '--enable-decoder=pcm_alaw'
+          - '--enable-decoder=pcm_mulaw'
+          - '--enable-decoder=ass'
+          - '--enable-decoder=dvbsub'
+          - '--enable-decoder=dvdsub'
+          - '--enable-decoder=ccaption'
+          - '--enable-decoder=pgssub'
+          - '--enable-decoder=jacosub'
+          - '--enable-decoder=microdvd'
+          - '--enable-decoder=movtext'
+          - '--enable-decoder=mpl2'
+          - '--enable-decoder=pjs'
+          - '--enable-decoder=realtext'
+          - '--enable-decoder=sami'
+          - '--enable-decoder=ssa'
+          - '--enable-decoder=stl'
+          - '--enable-decoder=subrip'
+          - '--enable-decoder=subviewer'
+          - '--enable-decoder=text'
+          - '--enable-decoder=vplayer'
+          - '--enable-decoder=webvtt'
+          - '--enable-decoder=xsub'
+          - '--enable-decoder=eac3_eae'
+          - '--enable-decoder=truehd_eae'
+          - '--enable-decoder=mlp_eae'
+          - '--enable-encoder=flac'
+          - '--enable-encoder=alac'
+          - '--enable-encoder=libvorbis'
+          - '--enable-encoder=libopus'
+          - '--enable-encoder=mjpeg'
+          - '--enable-encoder=wrapped_avframe'
+          - '--enable-encoder=ass'
+          - '--enable-encoder=dvbsub'
+          - '--enable-encoder=dvdsub'
+          - '--enable-encoder=movtext'
+          - '--enable-encoder=ssa'
+          - '--enable-encoder=subrip'
+          - '--enable-encoder=text'
+          - '--enable-encoder=webvtt'
+          - '--enable-encoder=xsub'
+          - '--enable-encoder=pcm_f32be'
+          - '--enable-encoder=pcm_f32le'
+          - '--enable-encoder=pcm_f64be'
+          - '--enable-encoder=pcm_f64le'
+          - '--enable-encoder=pcm_s8'
+          - '--enable-encoder=pcm_s8_planar'
+          - '--enable-encoder=pcm_s16be'
+          - '--enable-encoder=pcm_s16be_planar'
+          - '--enable-encoder=pcm_s16le'
+          - '--enable-encoder=pcm_s16le_planar'
+          - '--enable-encoder=pcm_s24be'
+          - '--enable-encoder=pcm_s24le'
+          - '--enable-encoder=pcm_s24le_planar'
+          - '--enable-encoder=pcm_s32be'
+          - '--enable-encoder=pcm_s32le'
+          - '--enable-encoder=pcm_s32le_planar'
+          - '--enable-encoder=pcm_u8'
+          - '--enable-encoder=pcm_u16be'
+          - '--enable-encoder=pcm_u16le'
+          - '--enable-encoder=pcm_u24be'
+          - '--enable-encoder=pcm_u24le'
+          - '--enable-encoder=pcm_u32be'
+          - '--enable-encoder=pcm_u32le'
+          - '--enable-encoder=eac3_eae'
+          - '--enable-libzvbi'
+          - '--enable-gnutls'
+          - '--enable-libass'
+          - '--enable-librtmp'
+          - '--enable-libopus'
+          - '--enable-libvorbis'
+          # --external-decoder=h264 doesn't work, so just use --enable-libopenh264
+          - '--enable-libopenh264'
+          # enable more stuff, but it may break license if you redistribuite the resulting flatpak
+          - '--enable-gpl'
+        sources:
+          - type: archive
+            url: https://downloads.plex.tv/ffmpeg-source/plex-media-server-ffmpeg-gpl-a48fbc4519f.tar.gz
+            sha256: 4e5a844028a5e1188491761688d9aa25d273f6be11bb030826d30bcee1f191ca
+        cleanup:
+          - /bin
+          - /share/ffmpeg/examples
+        modules:
+          - name: rtmpdump
+            buildsystem: simple
+            sources:
+              - type: git
+                url: https://git.ffmpeg.org/rtmpdump
+                commit: c28f1bab7822de97353849e7787b59e50bbb1428
+              - type: shell
+                commands:
+                  - git cherry-pick -n eea470fa5f9a5481a36dedd257549595ef7480d6
+                  - git cherry-pick -n 8e3064207fa7535baad07fd06b65630ec8b31a08
+                  - git cherry-pick -n 7340f6dbc6b3c8e552baab2e5a891c2de75cddcc
+            build-commands:
+              - sed -e 's/^CRYPTO=OPENSSL/#CRYPTO=OPENSSL/' -e 's/#CRYPTO=GNUTLS/CRYPTO=GNUTLS/' -i Makefile -i librtmp/Makefile
+              - make OPT="$CFLAGS" XLDFLAGS="$LDFLAGS"
+              - make prefix=/app sbindir=/app/bin mandir=/app/share/man install
+            cleanup:
+              - /bin
+
+          - name: zvbi
+            buildsystem: autotools
+            sources:
+              - type: archive
+                url: https://downloads.sourceforge.net/sourceforge/zapping/zvbi-0.2.35.tar.bz2
+                sha256: fc883c34111a487c4a783f91b1b2bb5610d8d8e58dcba80c7ab31e67e4765318
+                x-checker-data:
+                  type: anitya
+                  project-id: 13803
+                  stable-only: true
+                  url-template: https://downloads.sourceforge.net/sourceforge/zapping/zvbi-$version.tar.bz2
+            cleanup:
+              - /bin
+              - /sbin
+
+          - name: nv-codec-headers
+            buildsystem: autotools
+            no-autogen: true
+            make-install-args:
+              - PREFIX=/app
+            sources:
+              - type: archive
+                url: https://github.com/FFmpeg/nv-codec-headers/releases/download/n11.1.5.1/nv-codec-headers-11.1.5.1.tar.gz
+                sha256: a28cdde3ac0e9e02c2dde7a1b4de5333b4ac6148a8332ca712da243a3361a0d9
+                x-checker-data:
+                  type: anitya
+                  project-id: 223796
+                  stable-only: true
+                  url-template: https://github.com/FFmpeg/nv-codec-headers/releases/download/n$version/nv-codec-headers-$version.tar.gz
+            cleanup:
+              - '*'
+
+          - name: opencl-headers
+            buildsystem: simple
+            build-commands:
+              - install -dm755 /app/include/CL
+              - for h in CL/*.h; do install -m 644 ${h} /app/include/CL/; done
+              - rm /app/include/CL/{cl_d3d,cl_dx9}*.h
+            sources:
+              - type: archive
+                url: https://github.com/KhronosGroup/OpenCL-Headers/archive/v2022.05.18/OpenCL-Headers-v2022.05.18.tar.gz
+                sha256: 88a1177853b279eaf574e2aafad26a84be1a6f615ab1b00c20d5af2ace95c42e
+                x-checker-data:
+                  type: anitya
+                  project-id: 223257
+                  stable-only: true
+                  url-template: https://github.com/KhronosGroup/OpenCL-Headers/archive/v$version/OpenCL-Headers-v$version.tar.gz
+            cleanup:
+              - '*'
+
+          - name: ocl-icd
+            buildsystem: autotools
+            sources:
+              - type: archive
+                url: https://github.com/OCL-dev/ocl-icd/archive/refs/tags/v2.3.1.tar.gz
+                sha256: a32b67c2d52ffbaf490be9fc18b46428ab807ab11eff7664d7ff75e06cfafd6d
+                x-checker-data:
+                  type: anitya
+                  project-id: 2525
+                  stable-only: true
+                  url-template: https://github.com/OCL-dev/ocl-icd/archive/refs/tags/v$version.tar.gz
 
   - name: plex-binaries
     buildsystem: simple
     build-commands:
+      # Remove libraries built above or included in Platform
+      - rm -f lib/libav*.so.* lib/libcec.so.* lib/libdrm*.so.* lib/libEGL.so.* lib/libmpv.so.* lib/libpciaccess.so.* lib/libsw*.so.* lib/libva*.so.* lib/libxcb-xinerama.so.*
+      - rm -rf lib/dri
       - cp -a * /app
       - sed -i 's/BASE_DIR=\$(dirname "\$(readlink -f "\$0")")/BASE_DIR=\$(dirname "\$(readlink -f "\$0")")\/../g' /app/Plex.sh
       - sed -i 's/"\$BASE_DIR"\/bin\/Plex/"\$BASE_DIR"\/bin\/plex-bin/g' /app/Plex.sh
