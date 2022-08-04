@@ -1,10 +1,8 @@
-# Official Plex HTPC flatpak
+# Unoffical Plex HTPC flatpak
 
-This repo contains the flatpak metadata and auxiliary files for the official Plex HTPC flatpak. 
+This repo contains the flatpak metadata and auxiliary files for the unofficial Plex HTPC flatpak. 
 
-<a href='https://flathub.org/apps/details/tv.plex.PlexHTPC'><img width='120' alt='Download on Flathub' src='https://flathub.org/assets/badges/flathub-badge-en.png'/></a>
+The difference between this flatpak and the official one is that this one doesn't use the pre-built libraries (libmpv2, ffmpeg, etc) and ffmpeg is built with, almost, all the options enabled. 
 
-# Support
-
-  * [📚 User documentation](https://support.plex.tv/articles/categories/player-apps-platforms/plex-htpc/)
-  * [🛟 Questions, help](https://forums.plex.tv/)
+**WARNING**
+Since ffmpeg is also built with --enable-gpl, redistribution of the resulting flatpak may be illegal!
