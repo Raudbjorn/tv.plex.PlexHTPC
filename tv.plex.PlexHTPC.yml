@@ -98,13 +98,6 @@ modules:
       - python3 waf install
     sources:
       - type: git
-        url: https://github.com/libevent/libevent/
-        tag: release-2.1.12-stable
-    cleanup:
-      - /bin
-      - /include
-      - /lib/pkgconfig
-      - /lib/cmake
         url: https://github.com/plexinc/mpv/
         branch: v3.0
       - type: file
@@ -167,38 +160,6 @@ modules:
               stable-only: true
               url-template: https://github.com/libass/libass/releases/download/$version/libass-$version.tar.xz
 
-  - name: libsnappy
-    buildsystem: cmake-ninja
-    config-opts:
-      - "-DBUILD_SHARED_LIBS=ON"
-      - "-DSNAPPY_BUILD_TESTS=OFF"
-      - "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
-    sources:
-      - type: git
-        url: https://github.com/google/snappy
-        tag: 1.1.7
-
-  - name: minizip
-    subdir: contrib/minizip
-    config-opts:
-      - --disable-static
-    sources:
-      - type: archive
-        url: https://zlib.net/zlib-1.2.13.tar.gz
-        sha256: b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30
-        x-checker-data:
-          type: anitya
-          project-id: 5303
-          stable-only: true
-          url-template: https://zlib.net/zlib-$version.tar.gz
-      - type: shell
-        commands:
-          - GLOBIGNORE=contrib && rm -rf *
-          - GLOBIGNORE=contrib/minizip && rm -rf contrib/*
-          - rm -f contrib/minizip/Makefile
-          - autoreconf -fiv contrib/minizip
-    cleanup:
-      - '*.la'
       - name: vapoursynth
         buildsystem: autotools
         config-opts:
@@ -238,19 +199,19 @@ modules:
           - '--enable-shared'
           - '--disable-libx264'
           - '--disable-hwaccels'
-#          - '--disable-protocol=concat'
-##          - '--external-decoder=h264'
+          #          - '--disable-protocol=concat'
+          ##          - '--external-decoder=h264'
           - '--enable-debug'
           - '--enable-muxers'
           - '--enable-libxml2'
           - '--fatal-warnings'
           - '--disable-gmp'
-#          - '--disable-avdevice'
+          #          - '--disable-avdevice'
           - '--disable-bzlib'
           - '--disable-sdl2'
-#          - '--disable-decoders'
-#          - '--disable-devices'
-#          - '--disable-encoders'
+          #          - '--disable-decoders'
+          #          - '--disable-devices'
+          #          - '--disable-encoders'
           - '--disable-ffprobe'
           - '--disable-ffplay'
           - '--disable-doc'
@@ -496,13 +457,9 @@ modules:
   - name: plex-binaries
     buildsystem: simple
     build-commands:
-      - cp lib/libPlexMediaServer.so /app/lib
-      - cp Plex.sh /app
-      - cp bin/Plex* /app/bin
-      - cp -an resources/* /app/resources
+      - cp -a * /app
       - sed -i 's/BASE_DIR=\$(dirname "\$(readlink -f "\$0")")/BASE_DIR=\$(dirname "\$(readlink -f "\$0")")\/../g' /app/Plex.sh
       - sed -i 's/"\$BASE_DIR"\/bin\/Plex/"\$BASE_DIR"\/bin\/plex-bin/g' /app/Plex.sh
-      - sed -i '$ i\mkdir -p /var/data/plex/scripts/ && ln -sf /app/lib/mpv/mpris.so /var/data/plex/scripts/' /app/Plex.sh
       - mv /app/bin/Plex /app/bin/plex-bin
       - mv /app/Plex.sh /app/bin/Plex
     sources:
